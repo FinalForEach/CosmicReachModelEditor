@@ -1,5 +1,24 @@
 (() => {
     let codec, import_action_block, dialog, propertiesDialog, originalJavaBlockCond, lastOccuranceOfSequenceInArray
+    const resolveAssetPath = (modelPath, assetString) => {
+        if (!assetString || typeof assetString !== 'string') return assetString;
+        if (!modelPath || typeof modelPath !== 'string') return assetString.replace(":", "/");
+        let patharr = modelPath.split(/[\\\/]/g)
+        if (patharr.length > 0 && patharr[patharr.length - 1].endsWith(".json")) {
+            patharr.pop()
+        }
+        let modelsIdx = patharr.lastIndexOf("models")
+        if (modelsIdx !== -1) {
+            if (assetString.includes(":")) {
+                let baseDir = patharr.slice(0, modelsIdx - 1).join("/")
+                return baseDir + "/" + assetString.replace(":", "/")
+            } else {
+                let baseDir = patharr.slice(0, modelsIdx).join("/")
+                return baseDir + "/" + assetString
+            }
+        }
+        return assetString.replace(":", "/")
+    }
     const id = "cosmic_reach_model_editor"
     const name = "Cosmic Reach Model Editor"
     const icon = "icon.png"
@@ -196,12 +215,16 @@
             },
 
             parse(rawJSONstring, path, cuboidsOnly = false){
-                let loadedTextures = {}
+                try {
+                    console.log("[CosmicReachPlugin] Parsing Block Model from path:", path);
+                    let loadedTextures = {}
 
-                let patharr = path.split(/[\\\/]/g)
-                patharr = patharr.slice(0, patharr.length - 1)
+                    let patharr = (path && typeof path === 'string') ? path.split(/[\\\/]/g) : []
+                    if (patharr.length > 0) {
+                        patharr = patharr.slice(0, patharr.length - 1)
+                    }
 
-                let root = lastOccuranceOfSequenceInArray(patharr, ["models", "blocks"])
+                    let root = lastOccuranceOfSequenceInArray(patharr, ["models", "blocks"])
 
                 let facenamesbb = ["up", "down", "north", "south", "east", "west"]
                 let facenamescr = ["localPosY", "localNegY", "localNegZ", "localPosZ", "localPosX", "localNegX"]
@@ -214,16 +237,20 @@
                 }else if(rawJSONstring instanceof Object && !(rawJSONstring instanceof Array)){
                     data = rawJSONstring
                 }else{
+                    console.error("[CosmicReachPlugin] Unable to convert file data to Object");
                     throw "Unable to convert file data to Object"
                 }
 
-                if(cuboidsOnly){
+                console.log("[CosmicReachPlugin] Model Data:", data);
+
+                if(cuboidsOnly === true){
                     if(data.cuboids === undefined){
                         if(data.parent === undefined){
                             return []
                         }else{
                             let p = data.parent
-                            Blockbench.read([...patharr.slice(undefined, patharr.length - 3), p.replace(":", "/")].join("/"), {
+                            console.log("[CosmicReachPlugin] Reading parent model (cuboidsOnly):", p);
+                            Blockbench.read(resolveAssetPath(path, p), {
                                 extensions: ['json'],
                                 type: 'Cosmic Reach Model',
                                 readtype: 'text',
@@ -241,6 +268,7 @@
                                     }
                                     return data.cuboids
                                 }catch(error){
+                                    console.error("[CosmicReachPlugin] Error parsing parent cuboids:", error);
                                     return []
                                 }
                             })
@@ -257,7 +285,9 @@
                     let texVal = data.textures[t]
                     let texPath = typeof texVal === 'string' ? texVal : (texVal ? texVal.fileName : undefined)
                     if(texPath){
-                        let newtexture = new Texture().fromPath([...patharr.slice(undefined, patharr.length - 3), texPath.replace(":", "/")].join("/"))
+                        let resolved = resolveAssetPath(path, texPath);
+                        console.log(`[CosmicReachPlugin] Loading texture '${t}':`, texPath, "=> resolved:", resolved);
+                        let newtexture = new Texture().fromPath(resolved)
                         newtexture.name = texPath
                         loadedTextures[t] = newtexture.add()
                     }
@@ -272,10 +302,12 @@
 
                 if(data.cuboids === undefined){
                     if(data.parent === undefined){
+                        console.error(`[CosmicReachPlugin] No cuboids found in file ${path}`);
                         throw Error(`No cuboids found in file ${path}`)
                     }else{
                         let p = data.parent
-                        Blockbench.read([...patharr.slice(undefined, patharr.length - 3), p.replace(":", "/")].join("/"), {
+                        console.log("[CosmicReachPlugin] Loading parent model:", p);
+                        Blockbench.read(resolveAssetPath(path, p), {
                             extensions: ['json'],
                             type: 'Cosmic Reach Model',
                             readtype: 'text',
@@ -297,6 +329,7 @@
                                 </div>`.split("\n")
                                 dialog.show()
                             }catch(error){
+                                console.error("[CosmicReachPlugin] Unable to import parent of model:", error);
                                 dialog.lines = `<div>
                                     <h1>Unable to import parent of the model.</h1>
                                     <p>${error}</p>
@@ -307,49 +340,61 @@
                     }
                 }
 
-                if(data.textures["all"] != undefined){
-                    allTexturesSpecified = true
-                }
-
                 function getFaceUV(cuboid, face, uv){
                     return cuboid.faces[face].uv[uv]
                 }
 
                 function setUVforFace(cube, cuboid, facenamebb, facenamecr){
-                    texture = allTexturesSpecified ? data.textures["all"] : data.textures[cuboid.faces[facenamecr].texture]
-                    cube.faces[facenamebb].uv =[getFaceUV(cuboid, facenamecr, 0),
+                    if(!cuboid.faces[facenamecr]) return;
+                    let texKey = cuboid.faces[facenamecr].texture;
+                    let textureObj = data.textures[texKey] || data.textures["all"];
+                    let texPath = typeof textureObj === 'string' ? textureObj : (textureObj ? textureObj.fileName : undefined);
+
+                    cube.faces[facenamebb].uv = [getFaceUV(cuboid, facenamecr, 0),
                                                 getFaceUV(cuboid, facenamecr, 1),
                                                 getFaceUV(cuboid, facenamecr, 2),
                                                 getFaceUV(cuboid, facenamecr, 3)]
                     cube.faces[facenamebb].rotation = cuboid.faces[facenamecr]["uvRotation"] ?? 0
-                    cube.faces[facenamebb].texture = Texture.all.filter((x) => {return x.name == texture.fileName})[0]
-                }
-
-                for(let cuboid of data.cuboids){
-                    let from = cuboid.localBounds.slice(0, 3)
-                    let to = cuboid.localBounds.slice(3, 6)
-
-                    let cube = new Cube({from: from, to: to})
-                    for(let i = 0; i < 6; i++){
-                        try{
-                            let texture = loadedTextures[allTexturesSpecified ? "all" : cuboid.faces[facenamescr[i]].texture]
-                            setUVforFace(cube, cuboid, facenamesbb[i], facenamescr[i])
-                            cube.faces[facenamesbb[i]].texture = texture
-                        }catch(error){
-                            
-                        }
-                        if(cuboid.faces[facenamescr[i]] !== undefined){
-                            cube.faces[facenamesbb[i]].cullface = cuboid.faces[facenamescr[i]].cullFace ? facenamesbb[i] : ""
-                            cube.faces[facenamesbb[i]].tint = cuboid.faces[facenamescr[i]].ambientocclusion ? 0 : -1
-                        }else{
-                            cube.faces[facenamesbb[i]].enabled = false
+                    if(texPath){
+                        let matched = Texture.all.filter((x) => { return x.name == texPath })[0]
+                        if(matched){
+                            cube.faces[facenamebb].texture = matched
                         }
                     }
-                    cube.addTo(Group.all.last()).init()
+                }
+
+                console.log("[CosmicReachPlugin] Creating cuboids count:", data.cuboids?.length);
+                if(data.cuboids){
+                    for(let cuboid of data.cuboids){
+                        let from = cuboid.localBounds.slice(0, 3)
+                        let to = cuboid.localBounds.slice(3, 6)
+
+                        console.log("[CosmicReachPlugin] Creating Cube from:", from, "to:", to);
+                        let cube = new Cube({from: from, to: to})
+                        for(let i = 0; i < 6; i++){
+                            try{
+                                setUVforFace(cube, cuboid, facenamesbb[i], facenamescr[i])
+                            }catch(error){
+                                console.warn(`[CosmicReachPlugin] Warning setting UV for face ${facenamesbb[i]}:`, error);
+                            }
+                            if(cuboid.faces[facenamescr[i]] !== undefined){
+                                cube.faces[facenamesbb[i]].cullface = cuboid.faces[facenamescr[i]].cullFace ? facenamesbb[i] : ""
+                                cube.faces[facenamesbb[i]].tint = cuboid.faces[facenamescr[i]].ambientocclusion ? 0 : -1
+                            }else{
+                                cube.faces[facenamesbb[i]].enabled = false
+                            }
+                        }
+                        if(Group.all.length > 0){
+                            cube.addTo(Group.all.last()).init()
+                        }else{
+                            cube.init()
+                        }
+                    }
                 }
                 
                 setTimeout(() => {
                     Canvas.updateAll()
+                    console.log("[CosmicReachPlugin] Parsing complete. Canvas updated.");
                 }, 50);
 
                 properties = {isTransparent: false, cullsSelf: true}
@@ -362,6 +407,10 @@
                 Project.properties = properties
 
                 return true;
+                } catch(err) {
+                    console.error("[CosmicReachPlugin] CRITICAL EXCEPTION IN BLOCK MODEL PARSE:", err, err?.stack);
+                    throw err;
+                }
             }
         })
 
@@ -657,14 +706,19 @@
             },
 
             parse(rawJSONstring, path, _cuboidsOnly = false){
+                try {
+                    console.log("[CosmicReachPlugin] Parsing Entity Model from path:", path);
                 let data
                 if(typeof rawJSONstring === 'string'){
                     data = JSON.parse(rawJSONstring)
                 }else if(rawJSONstring instanceof Object && !(rawJSONstring instanceof Array)){
                     data = rawJSONstring
                 }else{
+                    console.error("[CosmicReachPlugin] Unable to convert entity model data to Object");
                     throw "Unable to convert file data to Object"
                 }
+
+                console.log("[CosmicReachPlugin] Entity Model Data:", data);
 
                 Project.texture_width = data.texture_width || 16
                 Project.texture_height = data.texture_height || 16
@@ -683,6 +737,7 @@
                             let origin = cube.origin || [0, 0, 0]
                             let size = cube.size || [0, 0, 0]
                             let to = [origin[0] + size[0], origin[1] + size[1], origin[2] + size[2]]
+                            console.log(`[CosmicReachPlugin] Entity Bone '${bone.name}' Cube origin:`, origin, "size:", size, "to:", to);
                             let newCube = new Cube({
                                 uv_offset: cube.uv,
                                 from: origin,
@@ -708,12 +763,13 @@
                 let patharr = path.split(/[\\\/]/g)
 
                 let loadedTextures = {}
-                const b = patharr.slice(undefined, patharr.length - 4)
                 for(let t of Object.keys(data.textures ?? {})){
                     let texVal = data.textures[t]
                     let texPath = typeof texVal === 'string' ? texVal : (texVal ? texVal.fileName : undefined)
                     if(texPath){
-                        let newtexture = new Texture().fromPath([...b, texPath.replace(":", "/")].join("/"))
+                        let resolved = resolveAssetPath(path, texPath);
+                        console.log(`[CosmicReachPlugin] Entity loading texture '${t}':`, texPath, "=> resolved:", resolved);
+                        let newtexture = new Texture().fromPath(resolved)
                         newtexture.name = texPath
                         loadedTextures[t] = newtexture.add()
                     }
@@ -742,6 +798,10 @@
                     }
                 })
 
+                } catch(err) {
+                    console.error("[CosmicReachPlugin] CRITICAL EXCEPTION IN ENTITY MODEL PARSE:", err, err?.stack);
+                    throw err;
+                }
             }
         })
         
