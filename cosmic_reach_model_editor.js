@@ -673,14 +673,20 @@
 
                 bones = {}
                 for(let bone of data.bones){
-                    let group = new Group((({ cubes, parent, ...o }) => o)(bone)).init()
-                    group.origin = bone.pivot
+                    let group = new Group({
+                        name: bone.name,
+                        origin: bone.pivot || [0, 0, 0],
+                        rotation: bone.rotation
+                    }).init()
                     if(bone.cubes){
                         for(let cube of bone.cubes){
+                            let origin = cube.origin || [0, 0, 0]
+                            let size = cube.size || [0, 0, 0]
+                            let to = [origin[0] + size[0], origin[1] + size[1], origin[2] + size[2]]
                             let newCube = new Cube({
                                 uv_offset: cube.uv,
-                                from: cube.origin,
-                                size: cube.size,
+                                from: origin,
+                                to: to,
                                 rotation: cube.rotation,
                                 origin: cube.pivot,
                                 inflate: cube.inflate
