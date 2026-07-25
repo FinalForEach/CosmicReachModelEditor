@@ -45,8 +45,8 @@
 
         propertiesDialog = new Dialog("cosmic_reach_model_properties_dialog", {
             id: "cosmic_reach_model_properties_dialog",
-            totle: "Properties",
-            lines: [],
+            title: "Properties",
+            form: blockPropertiesForm,
             onConfirm: (b, e) => {
                 let res = propertiesDialog.getFormResult()
                 Project.properties = res
@@ -1012,14 +1012,10 @@
             name: "Edit model properties",
             category: "Tools",
             click() {
-                switch (Project.format.id){
-                    default:
-                        propertiesDialog.form = {}
-                        propertiesDialog.show()
-                    case "cosmic_reach_model":
-                        propertiesDialog.form = blockPropertiesForm
-                        propertiesDialog.show()
-                        propertiesDialog.setFormValues(Project.properties)
+                if (Project && Project.format && Project.format.id === "cosmic_reach_model") {
+                    propertiesDialog.show()
+                    let values = Project.properties || { cullsSelf: true, isTransparent: false }
+                    propertiesDialog.setFormValues(values)
                 }
             }
         })
