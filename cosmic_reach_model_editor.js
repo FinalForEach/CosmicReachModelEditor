@@ -1,5 +1,5 @@
 (() => {
-    let codec, export_action_block_minimized, export_action_block_maximized, import_action_block, dialog, propertiesDialog, originalJavaBlockCond, lastOccuranceOfSequenceInArray
+    let codec, import_action_block, dialog, propertiesDialog, originalJavaBlockCond, lastOccuranceOfSequenceInArray
     const id = "cosmic_reach_model_editor"
     const name = "Cosmic Reach Model Editor"
     const icon = "icon.png"
@@ -72,9 +72,6 @@
                 target: ["json"],
     
                 vertex_color_ambient_occlusion: true,
-                /*rotate_cubes: true,
-                rotation_limit: true,
-                rotation_snap: true,*/
                 uv_rotation: true,
                 java_face_properties: true,
                 
@@ -94,7 +91,6 @@
             
                 let cuboids = []
                 let texturesUsed = []
-                let texturesFilesUsed = []
                 let textures = {}
 
                 function compileCube(obj){
@@ -115,10 +111,9 @@
                             }
                         })
                         let texture = textures[0]
-                        //if (texture == undefined) console.error(obj.faces)
-                        if (texture !== undefined) texture = texture.name
-                        //texture = (texture === undefined) ? "empty.png" : texture.name
-
+                        if (texture !== undefined) {
+                            texture = texture.name
+                        }
                         let face = obj.faces[f]
 
                         uvs[f] = [uv[0], uv[1], uv[2], uv[3], face.cullface, texture, face.rotation]
@@ -128,23 +123,7 @@
                     
                     let cube = {
                         "localBounds": [...obj.from, ...obj.to],
-                        "faces":
-                        {
-                            /*"localNegX": {"uv": uvs.west.slice(0, 4), "ambientocclusion": uvs.west[4].tint === 0,
-                            "cullFace": uvs.west[4].cullFace !== "", "texture": uvs.west[5]},
-                            "localPosX": {"uv": uvs.east.slice(0, 4), "ambientocclusion":  uvs.east[4].tint === 0,
-                            "cullFace": uvs.east[4].cullFace !== "", "texture": uvs.east[5]},
-
-                            "localNegY": {"uv": uvs.down.slice(0, 4), "ambientocclusion":  uvs.down[4].tint === 0,
-                            "cullFace": uvs.down[4].cullFace !== "", "texture": uvs.down[5]},
-                            "localPosY": {"uv": uvs.up.slice(0, 4), "ambientocclusion":  uvs.up[4].tint === 0,
-                            "cullFace": uvs.up[4].cullFace !== "", "texture": uvs.up[5]},
-
-                            "localNegZ": {"uv": uvs.north.slice(0, 4), "ambientocclusion":  uvs.north[4].tint === 0,
-                            "cullFace": uvs.north[4].cullFace !== "", "texture": uvs.north[5]},
-                            "localPosZ": {"uv": uvs.south.slice(0, 4), "ambientocclusion":  uvs.south[4].tint === 0,
-                            "cullFace": uvs.south[4].cullFace !== "", "texture": uvs.south[5]}*/
-                        }
+                        "faces":{}
                     }
                     
                     for(let i = 0; i < 6; i++){
@@ -203,10 +182,7 @@
                     const name = texturesUsed[i]
                     textures[name] = { "fileName": name }
                 }
-
-                //JSON.stringify({"textures": textures, "cuboids": cuboids}, undefined, options.maximize ? 4 : undefined)
-
-                
+              
                 let r = {"textures": textures, "cuboids": cuboids}
                 if (Project.properties){
                     if (Project.properties.isTransparent !== undefined){
@@ -415,7 +391,6 @@
 					if (obj instanceof Group) {
 						compileGroup(obj);
 					} else if (obj instanceof Cube) {
-						//compileCube(obj)
 					}
 				})
 
@@ -634,13 +609,6 @@
                     return cube
                 }
                 function compileGroup(obj){
-                    /*group.children.forEach(obj => {
-                        if (obj instanceof Group) {
-                            compileGroup(obj);
-                            } else if (obj instanceof Cube) {
-                                compileCube(obj)
-                                }
-                                })*/
                     let newBone = {
                         name: obj.name,
                         pivot: obj.origin
@@ -669,15 +637,13 @@
 					if (obj instanceof Group) {
 						compileGroup(obj);
 					} else if (obj instanceof Cube) {
-						//compileCube(obj)
 					}
 				})
-
-                //
+                
                 return stringifyJSON({id: name, texture_width: Project.texture_width, texture_height: Project.texture_height, bones: bones})
             },
 
-            parse(rawJSONstring, path, cuboidsOnly = false){
+            parse(rawJSONstring, path, _cuboidsOnly = false){
                 let data
                 if(typeof rawJSONstring === 'string'){
                     data = JSON.parse(rawJSONstring)
@@ -729,11 +695,7 @@
                     newtexture.name = data.textures[t].fileName
                     loadedTextures[t] = newtexture.add()
                 }
-                
-                //patharr = patharr.slice(0, patharr.length - 1)
-
-                //
-                
+                                
                 let root = lastOccuranceOfSequenceInArray(patharr, ["models", "entities"])
 
                 let animpatharr = [...patharr.slice(undefined, root - 1), "animations", ...patharr.slice(root)]
@@ -791,47 +753,6 @@
                     description: '',
                     icon: icon64,
                     category: 'file',
-                    /*side_menu: new Menu("export_cosmic_reach_model_sidemenu", [
-                        new Action('export_cosmic_reach_model', {
-                        name: 'Export minimized',
-                        description: '',
-                        icon: icon64,
-                        category: 'file',
-                        structure: [
-                            
-                        ],
-                        click() {
-                            try{
-                                codec.export();
-                            }catch(error){
-                                dialog.lines = `<div>
-                                    <h1>Unable to export file.</h1>
-                                    <p>${error}</p>
-                                </div>`.split("\n")
-                                dialog.show()
-                            }
-                        }
-                    }),
-                    new Action('export_cosmic_reach_model_maximized', {
-                        name: 'Export maximized',
-                        description: '',
-                        icon: icon64,
-                        category: 'file',
-                        click() {
-                            try{
-                                codec.export();
-                            }catch(error){
-                                dialog.lines = `<div>
-                                    <h1>Unable to export file.</h1>
-                                    <p>${error}</p>
-                                </div>`.split("\n")
-                                dialog.show()
-                            }
-                        }
-                    }),
-                    
-                        
-                    ]),*/
                     click() {
                         try{
                             codec.export({parent: undefined});
@@ -844,7 +765,6 @@
                         }
                     }
                 })
-        //export_action_block_maximized = 
         export_action_block_aschild = new Action('export_cosmic_reach_model_aschild', {
                         name: 'Export Cosmic Reach Block Child Model',
                         description: '',
@@ -877,8 +797,6 @@
 
         MenuBar.addAction(import_action_block, 'file.import')
         MenuBar.addAction(export_action_block, 'file.export')
-        /*MenuBar.addAction(export_action_block_minimized, 'file.export')
-        MenuBar.addAction(export_action_block_maximized, 'file.export')*/
         MenuBar.addAction(export_action_block_aschild, 'file.export')
 
         import_action_entity = new Action('import_cosmic_reach_entity_model', {
@@ -910,42 +828,6 @@
             name: 'Export Cosmic Reach Entity Model',
             description: '',
             icon: icon64,
-            category: 'file',
-            /*children: side_menu: new Menu("export_cosmic_reach_entity_model_side_menu",[new Action('export_cosmic_reach_entity_model_minimized', {
-                name: 'Export minimized',
-                description: '',
-                icon: icon64,
-                category: 'file',
-                side_menu: new Menu("export_cosmic_reach_entity_model_side_menu",[]),
-                click() {
-                    try{
-                        codec_entity.export();
-                    }catch(error){
-                        dialog.lines = `<div>
-                            <h1>Unable to export file.</h1>
-                            <p>${error}</p>
-                        </div>`.split("\n")
-                        dialog.show()
-                    }
-                }
-            }),new Action('export_cosmic_reach_entity_model_maximized', {
-                name: 'Export maximized',
-                description: '',
-                icon: icon64,
-                category: 'file',
-                side_menu: new Menu("export_cosmic_reach_entity_model_side_menu",[]),
-                click() {
-                    try{
-                        codec_entity.export();
-                    }catch(error){
-                        dialog.lines = `<div>
-                            <h1>Unable to export file.</h1>
-                            <p>${error}</p>
-                        </div>`.split("\n")
-                        dialog.show()
-                    }
-                }
-            }),]),*/
             click() {
                 try{
                     codec_entity.export();
