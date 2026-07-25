@@ -1,0 +1,9 @@
+{
+  "name": "cosmic_reach_model_editor",
+  "version": "2.2.0",
+  "description": "Allows creating, editing, importing and exporting Cosmic Reach block models.",
+  "private": true,
+  "devDependencies": {
+    "blockbench-types": "^1.5.0"
+  }
+}

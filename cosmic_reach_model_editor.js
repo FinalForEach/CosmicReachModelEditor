@@ -11,7 +11,7 @@
       description: "Allows creating, editing, importing and exporting Cosmic Reach block models.",
       tags: ["Cosmic Reach"],
       version: "2.2.0",
-      min_version: "4.8.0",
+      min_version: "5.0.0",
       creation_date: "2024-04-19",
       variant: "both",
       new_repository_format: true,
@@ -92,10 +92,10 @@
                 let facenamesbb = ["up", "down", "north", "south", "east", "west"]
                 let facenamescr = ["localPosY", "localNegY", "localNegZ", "localPosZ", "localPosX", "localNegX"]
             
-                cuboids = []
-                texturesUsed = []
-                texturesFilesUsed = []
-                textures = {}
+                let cuboids = []
+                let texturesUsed = []
+                let texturesFilesUsed = []
+                let textures = {}
 
                 function compileCube(obj){
                     let uvs = {}
@@ -1043,11 +1043,11 @@
             }
             return -1
         }
-        vectorFromArrayToObject = (vectorArray, isString = false) => {
+        const vectorFromArrayToObject = (vectorArray, isString = false) => {
             return isString ? {x: vectorArray[0].toString(), y: vectorArray[1].toString(), z: vectorArray[2].toString()} : {x: vectorArray[0], y: vectorArray[1], z: vectorArray[2]}
         }
 
-        vectorIsEqualToVector = (vectorA, vectorB) => {
+        const vectorIsEqualToVector = (vectorA, vectorB) => {
             return (vectorA[0] == vectorB[0]) && (vectorA[1] == vectorB[1]) && (vectorA[2] == vectorB[2])
         }
 
@@ -1125,19 +1125,18 @@
 
 
       onunload() {
-		import_action_block.delete();
-		export_action_block.delete();
-		/*export_action_block_maximized.delete();
-		export_action_block_minimized.delete();*/
-		export_action_block_aschild.delete();
-		import_action_entity.delete();
-		export_action_entity.delete();
+		if (codec) codec.delete();
+		if (import_action_block) import_action_block.delete();
+		if (export_action_block) export_action_block.delete();
+		if (export_action_block_aschild) export_action_block_aschild.delete();
+		if (import_action_entity) import_action_entity.delete();
+		if (export_action_entity) export_action_entity.delete();
 
-        import_action_entity_animation.delete();
-        export_action_entity_animation.delete();
-        Codecs.java_block.load_filter.condition = originalJavaBlockCond
+        if (import_action_entity_animation) import_action_entity_animation.delete();
+        if (export_action_entity_animation) export_action_entity_animation.delete();
+        if (originalJavaBlockCond) Codecs.java_block.load_filter.condition = originalJavaBlockCond;
 
-        show_properties_dialog.delete()
+        if (show_properties_dialog) show_properties_dialog.delete();
       }
     })
   })()
