@@ -33,7 +33,7 @@
 
 
         Codecs.java_block.load_filter.condition = (model) => {
-			return !model.cuboids && originalJavaBlockCond(model);
+			return !model.cuboids && !model.bones && originalJavaBlockCond(model);
 		}
 
         dialog = new Dialog("cosmic_reach_model_errormessage", {
@@ -60,7 +60,7 @@
             remember: false,
             load_filter: {type: "json", extensions: ["json"],
               condition: (model) => {
-                  return model.cuboids || model.textures;
+                  return Boolean(model.cuboids || (model.textures && !model.bones));
               }
             },
             format: new ModelFormat("cosmic_reach_model", {
@@ -254,9 +254,13 @@
                 }
 
                 for(let t of Object.keys(data.textures)){
-                    let newtexture = new Texture().fromPath([...patharr.slice(undefined, patharr.length - 3), data.textures[t].fileName.replace(":", "/")].join("/"))
-                    newtexture.name = data.textures[t].fileName
-                    loadedTextures[t] = newtexture.add()
+                    let texVal = data.textures[t]
+                    let texPath = typeof texVal === 'string' ? texVal : (texVal ? texVal.fileName : undefined)
+                    if(texPath){
+                        let newtexture = new Texture().fromPath([...patharr.slice(undefined, patharr.length - 3), texPath.replace(":", "/")].join("/"))
+                        newtexture.name = texPath
+                        loadedTextures[t] = newtexture.add()
+                    }
                 }
                 
                 if(Texture.all.length > 0) {
@@ -364,7 +368,12 @@
         codec_animation = new Codec("cosmic_reach_entity_animation_codec", {
             name: "Cosmic Reach Entity Animation",
             extension: "json",
-            load_filter: {type: "json", extensions: ["json"]},
+            remember: false,
+            load_filter: {type: "json", extensions: ["json"],
+              condition: (model) => {
+                  return Boolean(model.animations);
+              }
+            },
             parse(rawJSONstring, path){
                 let contents
                 if(typeof rawJSONstring === 'string'){
@@ -553,7 +562,7 @@
             remember: false,
             load_filter: {type: "json", extensions: ["json"],
             condition: (model) => {
-                return model.id && model.texture_width && model.texture_height && model.bones
+                return Boolean(model.bones);
             }},
             format: new ModelFormat("cosmic_reach_entity_model", {
                 id: "cosmic_reach_entity_model",
@@ -640,7 +649,11 @@
 					}
 				})
                 
-                return stringifyJSON({id: name, texture_width: Project.texture_width, texture_height: Project.texture_height, bones: bones})
+                let modelObj = {texture_width: Project.texture_width, texture_height: Project.texture_height, bones: bones}
+                if (Project.name) {
+                    modelObj.id = Project.name
+                }
+                return stringifyJSON(modelObj)
             },
 
             parse(rawJSONstring, path, _cuboidsOnly = false){
@@ -691,9 +704,13 @@
                 let loadedTextures = {}
                 const b = patharr.slice(undefined, patharr.length - 4)
                 for(let t of Object.keys(data.textures ?? {})){
-                    let newtexture = new Texture().fromPath([...b, data.textures[t].replace(":", "/")].join("/"))
-                    newtexture.name = data.textures[t].fileName
-                    loadedTextures[t] = newtexture.add()
+                    let texVal = data.textures[t]
+                    let texPath = typeof texVal === 'string' ? texVal : (texVal ? texVal.fileName : undefined)
+                    if(texPath){
+                        let newtexture = new Texture().fromPath([...b, texPath.replace(":", "/")].join("/"))
+                        newtexture.name = texPath
+                        loadedTextures[t] = newtexture.add()
+                    }
                 }
                                 
                 let root = lastOccuranceOfSequenceInArray(patharr, ["models", "entities"])
