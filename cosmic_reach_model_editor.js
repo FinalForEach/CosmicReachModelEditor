@@ -182,12 +182,55 @@
 
                     cuboids.push(cube)
                 }
+                let planes = []
+                function compileMesh(mesh){
+                    if (!mesh.faces) return;
+                    for(let fKey in mesh.faces){
+                        let face = mesh.faces[fKey];
+                        if (!face || !face.vertices || face.vertices.length !== 4) continue;
+                        let vertKeys = face.vertices;
+                        let v0 = mesh.vertices[vertKeys[0]];
+                        let v1 = mesh.vertices[vertKeys[1]];
+                        let v2 = mesh.vertices[vertKeys[2]];
+                        let v3 = mesh.vertices[vertKeys[3]];
+                        if (!v0 || !v1 || !v2 || !v3) continue;
+
+                        let texName = undefined;
+                        if (face.texture) {
+                            let matched = Texture.all.find(x => x.uuid === face.texture || x === face.texture);
+                            if (matched) texName = matched.name;
+                        }
+
+                        let uv0 = (face.uv && face.uv[vertKeys[0]]) ? face.uv[vertKeys[0]] : [0, 0];
+                        let uv1 = (face.uv && face.uv[vertKeys[1]]) ? face.uv[vertKeys[1]] : [16, 0];
+                        let uv2 = (face.uv && face.uv[vertKeys[2]]) ? face.uv[vertKeys[2]] : [16, 16];
+                        let uv3 = (face.uv && face.uv[vertKeys[3]]) ? face.uv[vertKeys[3]] : [0, 16];
+
+                        let plane = {
+                            "vertices": [
+                                v0[0], v0[1], v0[2],
+                                v1[0], v1[1], v1[2],
+                                v2[0], v2[1], v2[2],
+                                v3[0], v3[1], v3[2]
+                            ],
+                            "texture": texName || "top",
+                            "uv": [uv0[0], uv0[1], uv1[0], uv1[1], uv2[0], uv2[1], uv3[0], uv3[1]],
+                            "cullFace": Boolean(face.cullface),
+                            "uvRotation": face.rotation || 0,
+                            "doubleSided": true
+                        };
+                        planes.push(plane);
+                        if (texName) texturesUsed.push(texName);
+                    }
+                }
                 function compileGroup(group){
                     group.children.forEach(obj => {
 					if (obj instanceof Group) {
 						compileGroup(obj);
 					} else if (obj instanceof Cube) {
 						compileCube(obj)
+					} else if (typeof Mesh !== 'undefined' && obj instanceof Mesh) {
+						compileMesh(obj)
 					}
 				})
                 }
@@ -197,6 +240,8 @@
 						compileGroup(obj);
 					} else if (obj instanceof Cube) {
 						compileCube(obj)
+					} else if (typeof Mesh !== 'undefined' && obj instanceof Mesh) {
+						compileMesh(obj)
 					}
 				})
 
@@ -209,6 +254,9 @@
                 }
               
                 let r = {"textures": textures, "cuboids": cuboids}
+                if (planes.length > 0) {
+                    r.planes = planes
+                }
                 if (Project.properties){
                     if (Project.properties.isTransparent !== undefined){
                         r.isTransparent = Project.properties.isTransparent
@@ -306,10 +354,10 @@
                     }, 50);
                 }
 
-                if(data.cuboids === undefined){
+                if(data.cuboids === undefined && data.planes === undefined){
                     if(data.parent === undefined){
-                        console.error(`[CosmicReachPlugin] No cuboids found in file ${path}`);
-                        throw Error(`No cuboids found in file ${path}`)
+                        console.error(`[CosmicReachPlugin] No cuboids or planes found in file ${path}`);
+                        throw Error(`No cuboids or planes found in file ${path}`)
                     }else{
                         let p = data.parent
                         console.log("[CosmicReachPlugin] Loading parent model:", p);
@@ -394,6 +442,53 @@
                             cube.addTo(Group.all.last()).init()
                         }else{
                             cube.init()
+                        }
+                    }
+                }
+                
+                if(data.planes && typeof Mesh !== 'undefined'){
+                    console.log("[CosmicReachPlugin] Creating planes count:", data.planes.length);
+                    for(let plane of data.planes){
+                        if (!plane.vertices || plane.vertices.length < 12) continue;
+                        let v = plane.vertices;
+                        let uv = plane.uv || [0, 0, 16, 0, 16, 16, 0, 16];
+
+                        let texKey = plane.texture || "top";
+                        let textureObj = (data.textures && data.textures[texKey]) || (data.textures && data.textures["all"]) || (data.textures && Object.values(data.textures)[0]);
+                        let texPath = typeof textureObj === 'string' ? textureObj : (textureObj ? textureObj.fileName : undefined);
+                        let matchedTex = null;
+                        if(texPath){
+                            matchedTex = Texture.all.find((x) => { return x.name == texPath });
+                        }
+
+                        let mesh = new Mesh({
+                            name: "plane",
+                            vertices: {
+                                v0: [v[0], v[1], v[2]],
+                                v1: [v[3], v[4], v[5]],
+                                v2: [v[6], v[7], v[8]],
+                                v3: [v[9], v[10], v[11]]
+                            },
+                            faces: {
+                                f0: {
+                                    vertices: ["v0", "v1", "v2", "v3"],
+                                    uv: {
+                                        v0: [uv[0], uv[1]],
+                                        v1: [uv[2], uv[3]],
+                                        v2: [uv[4], uv[5]],
+                                        v3: [uv[6], uv[7]]
+                                    },
+                                    texture: matchedTex
+                                }
+                            }
+                        });
+                        if(plane.cullFace){
+                            mesh.faces.f0.cullface = "up";
+                        }
+                        if(Group.all.length > 0){
+                            mesh.addTo(Group.all.last()).init();
+                        }else{
+                            mesh.init();
                         }
                     }
                 }
