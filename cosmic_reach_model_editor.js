@@ -19,6 +19,12 @@
         }
         return assetString.replace(":", "/")
     }
+    const safeJSONParse = (jsonStr) => {
+        if (typeof jsonStr !== 'string') return jsonStr;
+        let cleanStr = jsonStr.replace(/("(?:[^\\"]|\\.)*")|\/\*[\s\S]*?\*\/|\/\/.*/g, (match, group1) => group1 ? group1 : '');
+        cleanStr = cleanStr.replace(/("(?:[^\\"]|\\.)*")|,\s*([}\]])/g, (match, group1, group2) => group1 ? group1 : group2);
+        return JSON.parse(cleanStr);
+    };
     const id = "cosmic_reach_model_editor"
     const name = "Cosmic Reach Model Editor"
     const icon = "icon.png"
@@ -233,7 +239,7 @@
 
                 let data
                 if(typeof rawJSONstring === 'string'){
-                    data = JSON.parse(rawJSONstring)
+                    data = safeJSONParse(rawJSONstring)
                 }else if(rawJSONstring instanceof Object && !(rawJSONstring instanceof Array)){
                     data = rawJSONstring
                 }else{
@@ -426,7 +432,7 @@
             parse(rawJSONstring, path){
                 let contents
                 if(typeof rawJSONstring === 'string'){
-                    contents = JSON.parse(rawJSONstring)
+                    contents = safeJSONParse(rawJSONstring)
                 }else if(rawJSONstring instanceof Object && !(rawJSONstring instanceof Array)){
                     contents = rawJSONstring
                 }else{
@@ -710,7 +716,7 @@
                     console.log("[CosmicReachPlugin] Parsing Entity Model from path:", path);
                 let data
                 if(typeof rawJSONstring === 'string'){
-                    data = JSON.parse(rawJSONstring)
+                    data = safeJSONParse(rawJSONstring)
                 }else if(rawJSONstring instanceof Object && !(rawJSONstring instanceof Array)){
                     data = rawJSONstring
                 }else{
@@ -787,7 +793,7 @@
                     resource_id: 'json'
                 }, files => {
                     try{
-                        let contents = JSON.parse(files[0].content)
+                        let contents = safeJSONParse(files[0].content)
                         codec_animation.parse(contents, animpath)
                     }catch(error){
                         dialog.lines = `<div>
