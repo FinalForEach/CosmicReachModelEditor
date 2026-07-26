@@ -786,23 +786,17 @@
                 let animpatharr = [...patharr.slice(undefined, root - 1), "animations", ...patharr.slice(root)]
                 animpatharr[animpatharr.length - 1] = animpatharr[animpatharr.length - 1].replace(/\.json$/gi, ".animation.json").replace(/^model_/gi, "")
                 let animpath = animpatharr.join("/")
-                Blockbench.read(animpath, {
-                    extensions: ['json'],
-                    type: 'Cosmic Reach Entity Model',
-                    readtype: 'text',
-                    resource_id: 'json'
-                }, files => {
-                    try{
-                        let contents = safeJSONParse(files[0].content)
-                        codec_animation.parse(contents, animpath)
-                    }catch(error){
-                        dialog.lines = `<div>
-                            <h1>Unable to import animations of the model.</h1>
-                            <p>${error}</p>
-                        </div>`.split("\n")
-                        dialog.show()
-                    }
-                })
+                fetch("file://" + animpath)
+                    .then(res => res.ok ? res.text() : null)
+                    .then(text => {
+                        if (text) {
+                            let contents = safeJSONParse(text)
+                            codec_animation.parse(contents, animpath)
+                        }
+                    })
+                    .catch(err => {
+                        console.log("[CosmicReachPlugin] No animation file found at path:", animpath);
+                    })
 
                 } catch(err) {
                     console.error("[CosmicReachPlugin] CRITICAL EXCEPTION IN ENTITY MODEL PARSE:", err, err?.stack);
